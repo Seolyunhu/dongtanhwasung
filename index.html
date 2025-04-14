@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>동화 인력 출퇴근</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
+  <script>
+    Kakao.init("3911ee323f5b81457c75c46134138266");
+  </script>
+</head>
+<body>
+  <img src="logo.png" alt="로고" width="100"><br>
+  <h2>동화 인력 출퇴근 시스템</h2>
+  <input type="text" id="name" placeholder="이름 입력" />
+  <button onclick="check('출근')">출근</button>
+  <button onclick="check('퇴근')">퇴근</button>
+  <p id="result"></p>
+
+  <h3>관리자</h3>
+  <input type="password" id="adminPass" placeholder="관리자 비밀번호" />
+  <button onclick="adminLogin()">로그인</button>
+  <button onclick="adminLogout()">로그아웃</button>
+  <button onclick="download()">CSV 다운로드</button>
+  <a href="/dashboard" target="_blank">대시보드</a>
+
+  <h3>카카오 로그인</h3>
+  <button onclick="kakaoLogin()">카카오로 로그인</button>
+
+  <ul id="liveList"></ul>
+
+<script>
+function kakaoLogin() {
+  Kakao.Auth.login({
+    success: function(authObj) {
+      Kakao.API.request({
+        url: '/v2/user/me',
+        success: function(res) {
+          const name = res.kakao_account.profile.nickname;
+          document.getElementById("name").value = name;
+          alert(name + "님 환영합니다!");
+        }
+      });
+    }
+  });
+}
+function check(status) {
+  const name = document.getElementById("name").value;
+  fetch("/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, status })
+  })
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById("result").innerText = `${data.name}님 ${data.status} 완료 (${data.time})`;
+  });
+}
+function adminLogin() {
+  const pw = document.getElementById("adminPass").value;
+  fetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: pw })
+  })
+  .then(res => res.json())
+  .then(data => alert(data.success ? "로그인 성공" : "실패"));
+}
+function adminLogout() {
+  fetch("/logout").then(() => alert("로그아웃 됨"));
+}
+function download() {
+  fetch("/download")
+  .then(res => {
+    if (res.status === 403) return alert("관리자만 가능");
+    return res.blob();
+  })
+  .then(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "attendance.csv";
+    a.click();
+  });
+}
+function updateLive() {
+  fetch("/live")
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("liveList").innerHTML = data.map(name => `<li>${name}</li>`).join("");
+    });
+}
+setInterval(updateLive, 5000);
+</script>
+</body>
+</html>
